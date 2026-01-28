@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react"; 
 import {
   FaUserPlus,
   FaFilter,
@@ -53,7 +53,6 @@ function Affiliates() {
   const filterRef = useRef(null);
   const exportRef = useRef(null);
 
-  // Close dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (filterRef.current && !filterRef.current.contains(event.target))
@@ -65,7 +64,6 @@ function Affiliates() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Filtering logic
   useEffect(() => {
     let filtered = affiliates.filter(
       (a) =>
@@ -77,7 +75,6 @@ function Affiliates() {
     setFilteredAffiliates(filtered);
   }, [search, statusFilter, locationFilter, affiliates]);
 
-  // Export CSV / Excel
   const exportData = (type) => {
     const csvContent =
       "data:text/csv;charset=utf-8," +
@@ -105,12 +102,10 @@ function Affiliates() {
     setIsExportOpen(false);
   };
 
-  // Handle form changes
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // Add affiliate with validation
   const handleAddAffiliate = () => {
     const requiredFields = [
       "name",
@@ -162,10 +157,10 @@ function Affiliates() {
       {/* Header */}
       <div className="bg-white p-4 md:p-6 rounded-xl shadow-md flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-gray-800">
+          <h2 className="text-xl md:text-2xl font-semibold text-gray-800">
             Affiliates Management
           </h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm md:text-base text-gray-500 mt-1">
             Monitor and manage all affiliates
           </p>
         </div>
@@ -173,7 +168,7 @@ function Affiliates() {
           onClick={() => setIsModalOpen(true)}
           className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-white bg-gradient-to-r from-blue-500 to-yellow-400 hover:from-blue-600 hover:to-yellow-500 transition-all duration-300 shadow-lg hover:shadow-xl hover:scale-[1.03]"
         >
-          <FaUserPlus className="text-lg" />
+          <FaUserPlus className="text-lg md:text-xl" />
           Add Affiliates
         </button>
       </div>
@@ -181,26 +176,26 @@ function Affiliates() {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-xl shadow hover:shadow-lg transition">
-          <p className="text-sm text-gray-500">Total Affiliates</p>
-          <h3 className="text-2xl font-bold text-gray-800 mt-1">
+          <p className="text-sm md:text-base text-gray-500">Total Affiliates</p>
+          <h3 className="text-2xl md:text-3xl font-bold text-gray-800 mt-1">
             {affiliates.length}
           </h3>
         </div>
         <div className="bg-white p-5 rounded-xl shadow hover:shadow-lg transition">
-          <p className="text-sm text-gray-500">Active Affiliates</p>
-          <h3 className="text-2xl font-bold text-green-600 mt-1">
+          <p className="text-sm md:text-base text-gray-500">Active Affiliates</p>
+          <h3 className="text-2xl md:text-3xl font-bold text-green-600 mt-1">
             {affiliates.filter((a) => a.status === "Active").length}
           </h3>
         </div>
         <div className="bg-white p-5 rounded-xl shadow hover:shadow-lg transition">
-          <p className="text-sm text-gray-500">Total Orders</p>
-          <h3 className="text-2xl font-bold text-blue-600 mt-1">
+          <p className="text-sm md:text-base text-gray-500">Total Orders</p>
+          <h3 className="text-2xl md:text-3xl font-bold text-blue-600 mt-1">
             {affiliates.reduce((sum, a) => sum + a.orders, 0)}
           </h3>
         </div>
         <div className="bg-white p-5 rounded-xl shadow hover:shadow-lg transition">
-          <p className="text-sm text-gray-500">Total Commission</p>
-          <h3 className="text-2xl font-bold text-yellow-600 mt-1">
+          <p className="text-sm md:text-base text-gray-500">Total Commission</p>
+          <h3 className="text-2xl md:text-3xl font-bold text-yellow-600 mt-1">
             ₹
             {affiliates
               .reduce((sum, a) => sum + a.commission, 0)
@@ -219,7 +214,7 @@ function Affiliates() {
           className="w-full md:w-[45%] px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
         />
 
-        <div className="flex gap-3 relative">
+        <div className="flex gap-3 flex-wrap md:flex-nowrap relative">
           {/* Filter Dropdown */}
           <div ref={filterRef} className="relative">
             <button
@@ -230,8 +225,7 @@ function Affiliates() {
             </button>
 
             {isFilterOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-white border border-gray-300 rounded-xl shadow-lg z-50 p-4 space-y-4">
-                {/* Status Dropdown */}
+              <div className="absolute right-0 mt-2 w-full sm:w-64 bg-white border border-gray-300 rounded-xl shadow-lg z-50 p-4 space-y-4">
                 <div>
                   <label className="text-sm font-semibold text-gray-600">
                     Status
@@ -247,7 +241,6 @@ function Affiliates() {
                   </select>
                 </div>
 
-                {/* Location Dropdown */}
                 <div>
                   <label className="text-sm font-semibold text-gray-600">
                     Location
@@ -267,9 +260,6 @@ function Affiliates() {
                     )}
                   </select>
                 </div>
-
-                {/* Apply Button */}
-                
               </div>
             )}
           </div>
@@ -283,7 +273,7 @@ function Affiliates() {
               <FaFileExport /> Export
             </button>
             {isExportOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border border-gray-300 rounded-lg shadow-lg z-50">
+              <div className="absolute right-0 mt-2 w-full sm:w-48 bg-white border border-gray-300 rounded-lg shadow-lg z-50">
                 <button
                   onClick={() => exportData("csv")}
                   className="block w-full text-left px-4 py-2 hover:bg-gray-100"
@@ -304,9 +294,9 @@ function Affiliates() {
 
       {/* Table */}
       <div className="bg-white rounded-xl shadow-lg overflow-x-auto">
-        <table className="min-w-[1000px] w-full">
+        <table className="min-w-[900px] md:min-w-full w-full">
           <thead>
-            <tr className="text-left text-sm font-semibold text-gray-600">
+            <tr className="text-left text-sm md:text-base font-semibold text-gray-600">
               <th className="p-4">Affiliate ID</th>
               <th className="p-4">Name</th>
               <th className="p-4">Location</th>
@@ -337,7 +327,9 @@ function Affiliates() {
                 </td>
                 <td className="p-4">
                   <span
-                    className={`px-3 py-1 text-xs font-semibold rounded-full ${item.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"}`}
+                    className={`px-3 py-1 text-xs md:text-sm font-semibold rounded-full ${
+                      item.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                    }`}
                   >
                     {item.status}
                   </span>
@@ -353,166 +345,166 @@ function Affiliates() {
         </table>
       </div>
 
-      {/* Add Affiliate Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
-          <div className="bg-white w-full max-w-2xl p-6 rounded-xl shadow-lg relative">
-            <h2 className="text-xl font-semibold mb-4">Add Affiliate</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
-                  Full Name <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="name"
-                  placeholder="Enter full name"
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={formData.name}
-                  onChange={handleChange}
-                />
-              </div>
-
-              {/* Profession */}
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
-                  Profession <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="profession"
-                  placeholder="Enter profession"
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={formData.profession}
-                  onChange={handleChange}
-                />
-              </div>
-
-              {/* Email */}
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
-                  Email <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="email"
-                  name="email"
-                  placeholder="Enter email"
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={formData.email}
-                  onChange={handleChange}
-                />
-              </div>
-
-              {/* Phone */}
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
-                  Phone <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="phone"
-                  placeholder="Enter phone number"
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={formData.phone}
-                  onChange={handleChange}
-                />
-              </div>
-
-              {/* Assign Dealer - FULL WIDTH */}
-              <div className="flex flex-col gap-1 md:col-span-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Assign To Dealer <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="dealer"
-                  placeholder="Dealer name or ID"
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={formData.dealer}
-                  onChange={handleChange}
-                />
-              </div>
-
-              {/* Address - FULL WIDTH */}
-              <div className="flex flex-col gap-1 md:col-span-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Address / Tehsil / Block{" "}
-                  <span className="text-red-500">*</span>
-                </label>
-                <textarea
-                  name="address"
-                  rows="2"
-                  placeholder="Enter full address"
-                  className="px-3 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={formData.address}
-                  onChange={handleChange}
-                />
-              </div>
-
-              {/* City */}
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
-                  City / District <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="city"
-                  placeholder="Enter city or district"
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={formData.city}
-                  onChange={handleChange}
-                />
-              </div>
-
-              {/* State */}
-              <div className="flex flex-col gap-1">
-                <label className="text-sm font-medium text-gray-700">
-                  State <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="state"
-                  placeholder="Enter state"
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={formData.state}
-                  onChange={handleChange}
-                />
-              </div>
-
-              {/* Pincode - FULL WIDTH */}
-              <div className="flex flex-col gap-1 md:col-span-2">
-                <label className="text-sm font-medium text-gray-700">
-                  Pincode <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="pincode"
-                  placeholder="Enter pincode"
-                  className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={formData.pincode}
-                  onChange={handleChange}
-                />
-              </div>
-            </div>
-
-            {/* Buttons */}
-            <div className="flex justify-end gap-4 mt-6">
-              <button
-                onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 border rounded hover:bg-gray-100"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleAddAffiliate}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Add Affiliate
-              </button>
-            </div>
-          </div>
+  <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50 p-4 md:p-0">
+    <div className="bg-white w-full max-w-2xl p-6 rounded-xl shadow-lg relative overflow-y-auto max-h-[90vh]">
+      <h2 className="text-xl md:text-2xl font-semibold mb-4">Add Affiliate</h2>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Full Name */}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm md:text-base font-medium text-gray-700">
+            Full Name <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            name="name"
+            placeholder="Enter full name"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={formData.name}
+            onChange={handleChange}
+          />
         </div>
-      )}
+
+        {/* Profession */}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm md:text-base font-medium text-gray-700">
+            Profession <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            name="profession"
+            placeholder="Enter profession"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={formData.profession}
+            onChange={handleChange}
+          />
+        </div>
+
+        {/* Email */}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm md:text-base font-medium text-gray-700">
+            Email <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="email"
+            name="email"
+            placeholder="Enter email"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={formData.email}
+            onChange={handleChange}
+          />
+        </div>
+
+        {/* Phone */}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm md:text-base font-medium text-gray-700">
+            Phone <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            name="phone"
+            placeholder="Enter phone number"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={formData.phone}
+            onChange={handleChange}
+          />
+        </div>
+
+        {/* Assign Dealer - FULL WIDTH */}
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="text-sm md:text-base font-medium text-gray-700">
+            Assign To Dealer <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            name="dealer"
+            placeholder="Dealer name or ID"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={formData.dealer}
+            onChange={handleChange}
+          />
+        </div>
+
+        {/* Address - FULL WIDTH */}
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="text-sm md:text-base font-medium text-gray-700">
+            Address / Tehsil / Block <span className="text-red-500">*</span>
+          </label>
+          <textarea
+            name="address"
+            rows="2"
+            placeholder="Enter full address"
+            className="px-3 py-2 border border-gray-300 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={formData.address}
+            onChange={handleChange}
+          />
+        </div>
+
+        {/* City */}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm md:text-base font-medium text-gray-700">
+            City / District <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            name="city"
+            placeholder="Enter city or district"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={formData.city}
+            onChange={handleChange}
+          />
+        </div>
+
+        {/* State */}
+        <div className="flex flex-col gap-1">
+          <label className="text-sm md:text-base font-medium text-gray-700">
+            State <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            name="state"
+            placeholder="Enter state"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={formData.state}
+            onChange={handleChange}
+          />
+        </div>
+
+        {/* Pincode - FULL WIDTH */}
+        <div className="flex flex-col gap-1 md:col-span-2">
+          <label className="text-sm md:text-base font-medium text-gray-700">
+            Pincode <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            name="pincode"
+            placeholder="Enter pincode"
+            className="px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            value={formData.pincode}
+            onChange={handleChange}
+          />
+        </div>
+      </div>
+
+      {/* Buttons */}
+      <div className="flex flex-col md:flex-row justify-end gap-4 mt-6">
+        <button
+          onClick={() => setIsModalOpen(false)}
+          className="px-4 py-2 border rounded hover:bg-gray-100"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleAddAffiliate}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Add Affiliate
+        </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 }

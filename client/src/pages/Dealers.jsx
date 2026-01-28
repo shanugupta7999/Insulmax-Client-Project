@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef } from "react"; 
 import {
   FaUserPlus,
   FaFilter,
@@ -144,43 +144,43 @@ function Dealers() {
       {/* Header */}
       <div className="bg-white p-4 md:p-6 rounded-xl shadow-md flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-xl font-semibold text-gray-800">
+          <h2 className="text-xl md:text-2xl font-semibold text-gray-800">
             Dealers Management
           </h2>
-          <p className="text-sm text-gray-500 mt-1">
+          <p className="text-sm md:text-base text-gray-500 mt-1">
             Monitor and manage all dealers
           </p>
         </div>
         <button
           onClick={() => setIsModalOpen(true)}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-white bg-gradient-to-r from-blue-500 to-yellow-400 hover:from-blue-600 hover:to-yellow-500 transition-all duration-300 shadow-lg"
+          className="flex items-center justify-center gap-2 px-5 py-2.5 md:px-6 md:py-3 rounded-lg font-semibold text-white bg-gradient-to-r from-blue-500 to-yellow-400 hover:from-blue-600 hover:to-yellow-500 transition-all duration-300 shadow-lg"
         >
           <FaUserPlus /> Add Dealer
         </button>
       </div>
 
       {/* Search + Filter + Export */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between bg-white p-4 rounded-xl shadow-sm gap-4">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between bg-white p-4 md:p-6 rounded-xl shadow-sm gap-4">
         <input
           type="search"
           placeholder="Search Dealer"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full md:w-[45%] px-4 py-2 border rounded-lg"
+          className="w-full md:w-[45%] px-4 py-2 md:px-5 md:py-2.5 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
 
-        <div className="flex gap-3 relative">
+        <div className="flex gap-3 flex-wrap md:flex-nowrap relative">
           {/* Filter */}
           <div ref={filterRef} className="relative">
             <button
               onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className="flex items-center gap-2 px-4 py-2 border rounded-lg"
+              className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 border rounded-lg hover:bg-gray-100"
             >
               <FaFilter /> Filter
             </button>
 
             {isFilterOpen && (
-              <div className="absolute right-0 mt-2 w-64 bg-white border rounded-xl shadow-lg z-50 p-4 space-y-4">
+              <div className="absolute right-0 mt-2 w-full sm:w-64 bg-white border rounded-xl shadow-lg z-50 p-4 space-y-4">
                 <div>
                   <label>Status</label>
                   <select
@@ -217,12 +217,12 @@ function Dealers() {
           <div ref={exportRef} className="relative">
             <button
               onClick={() => setIsExportOpen(!isExportOpen)}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg"
+              className="flex items-center gap-2 px-4 py-2 md:px-5 md:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               <FaFileExport /> Export
             </button>
             {isExportOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white border rounded-lg shadow-lg z-50">
+              <div className="absolute right-0 mt-2 w-full sm:w-48 bg-white border rounded-lg shadow-lg z-50">
                 <button
                   onClick={() => exportData("csv")}
                   className="block w-full text-left px-4 py-2 hover:bg-gray-100"
@@ -243,31 +243,31 @@ function Dealers() {
 
       {/* Table */}
       <div className="bg-white rounded-xl shadow-lg overflow-x-auto">
-        <table className="min-w-[900px] w-full">
+        <table className="min-w-[700px] md:min-w-[900px] w-full">
           <thead>
-            <tr className="text-left text-sm font-semibold  text-gray-600">
-              <th className="p-4">ID</th>
-              <th className="p-4">Business</th>
-              <th className="p-4">Owner</th>
-              <th className="p-4">Phone</th>
-              <th className="p-4">City</th>
-              <th className="p-4">State</th>
-              <th className="p-4">Status</th>
-              <th className="p-4 text-center">Action</th>
+            <tr className="text-left text-sm md:text-base font-semibold  text-gray-600">
+              <th className="p-3 md:p-4">ID</th>
+              <th className="p-3 md:p-4">Business</th>
+              <th className="p-3 md:p-4">Owner</th>
+              <th className="p-3 md:p-4">Phone</th>
+              <th className="p-3 md:p-4">City</th>
+              <th className="p-3 md:p-4">State</th>
+              <th className="p-3 md:p-4">Status</th>
+              <th className="p-3 md:p-4 text-center">Action</th>
             </tr>
           </thead>
           <tbody>
             {filteredDealers.map((item, index) => (
               <tr key={index} className=" border border-gray-100">
-                <td className="p-4">{item.id}</td>
-                <td className="p-4">{item.businessName}</td>
-                <td className="p-4">{item.ownerName}</td>
-                <td className="p-4">{item.phone}</td>
-                <td className="p-4">{item.city}</td>
-                <td className="p-4">{item.state}</td>
-                <td className="p-4">
+                <td className="p-2 md:p-4">{item.id}</td>
+                <td className="p-2 md:p-4">{item.businessName}</td>
+                <td className="p-2 md:p-4">{item.ownerName}</td>
+                <td className="p-2 md:p-4">{item.phone}</td>
+                <td className="p-2 md:p-4">{item.city}</td>
+                <td className="p-2 md:p-4">{item.state}</td>
+                <td className="p-2 md:p-4">
                   <span
-                    className={`px-3 py-1 rounded-full text-xs ${
+                    className={`px-2 md:px-3 py-1 rounded-full text-xs md:text-sm ${
                       item.status === "Active"
                         ? "bg-green-100 text-green-700"
                         : "bg-red-100 text-red-700"
@@ -276,7 +276,7 @@ function Dealers() {
                     {item.status}
                   </span>
                 </td>
-                <td className="p-4 text-center">
+                <td className="p-2 md:p-4 text-center">
                   <FaEllipsisV />
                 </td>
               </tr>
@@ -287,11 +287,13 @@ function Dealers() {
 
       {/* Add Dealer Modal */}
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
-          <div className="bg-white w-full max-w-2xl p-6 rounded-xl shadow-lg">
-            <h2 className="text-xl font-semibold mb-4">Add Dealer</h2>
+        <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50 p-4 md:p-0">
+          <div className="bg-white w-full max-w-2xl p-4 md:p-6 rounded-xl shadow-lg overflow-y-auto max-h-[90vh]">
+            <h2 className="text-xl md:text-2xl font-semibold mb-4">
+              Add Dealer
+            </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-1">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
               <Input
                 label="Business Name"
                 name="businessName"
@@ -353,18 +355,18 @@ function Dealers() {
                 onChange={handleChange}
               />
 
-              <div className="md:col-span-2">
+              <div className="sm:col-span-2">
                 <label>Full Address</label>
                 <textarea
-                  rows="1"
+                  rows="2"
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
-                  className="w-full border px-3 py-2 rounded-lg"
+                  className="w-full border px-3 py-2 rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
-              <div className="md:col-span-2">
+              <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Shop Picture
                 </label>
@@ -401,16 +403,16 @@ function Dealers() {
               </div>
             </div>
 
-            <div className="flex justify-end gap-4 mt-6">
+            <div className="flex flex-col md:flex-row justify-end gap-4 mt-6">
               <button
                 onClick={() => setIsModalOpen(false)}
-                className="px-4 py-2 border rounded-lg"
+                className="px-4 py-2 md:px-5 md:py-2.5 border rounded-lg hover:bg-gray-100"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddDealer}
-                className="px-5 py-2 bg-blue-600 text-white rounded-lg"
+                className="px-5 py-2 md:px-6 md:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 Add Dealer
               </button>
@@ -424,8 +426,11 @@ function Dealers() {
 
 const Input = ({ label, ...props }) => (
   <div className="flex flex-col gap-1">
-    <label className="text-sm font-medium">{label}</label>
-    <input {...props} className="px-3 py-2 border border-gray-300 rounded-lg" />
+    <label className="text-sm md:text-base font-medium">{label}</label>
+    <input
+      {...props}
+      className="px-3 py-2 md:px-4 md:py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+    />
   </div>
 );
 
