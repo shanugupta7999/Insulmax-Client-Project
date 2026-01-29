@@ -3,40 +3,24 @@ import {
   FaUserPlus,
   FaFilter,
   FaFileExport,
-  FaEllipsisV,
+  FaEdit,
+  FaTrash,
 } from "react-icons/fa";
 
-function Affiliates() {
-  const [affiliates, setAffiliates] = useState([
-    {
-      id: "AFL001",
-      name: "Rahul Traders",
-      location: "Delhi",
-      affiliates: 120,
-      orders: 560,
-      totalSales: 420000,
-      commission: 21000,
-      status: "Active",
-    },
-    {
-      id: "AFL002",
-      name: "Amit Enterprises",
-      location: "Mumbai",
-      affiliates: 80,
-      orders: 300,
-      totalSales: 200000,
-      commission: 15000,
-      status: "Inactive",
-    },
-  ]);
+const API_BASE_URL = "http://localhost:5000/api/affiliates";
 
-  const [filteredAffiliates, setFilteredAffiliates] = useState(affiliates);
+function Affiliates() {
+  const [affiliates, setAffiliates] = useState([]);
+  const [filteredAffiliates, setFilteredAffiliates] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [editingId, setEditingId] = useState(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -53,6 +37,33 @@ function Affiliates() {
   const filterRef = useRef(null);
   const exportRef = useRef(null);
 
+  // Fetch affiliates data from backend
+  const fetchAffiliates = async (query = "") => {
+    try {
+      setLoading(true);
+      setError(null);
+      const url = new URL(API_BASE_URL);
+      
+      if (search) url.searchParams.append("search", search);
+      if (statusFilter) url.searchParams.append("status", statusFilter);
+      if (locationFilter) url.searchParams.append("location", locationFilter);
+
+      const response = await fetch(url.toString());
+      
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status} - ${response.statusText}`);
+      }
+      
+      const data = await response.json();
+      setAffiliates(data.data || []);
+    } catch (err) {
+      console.error("Full error details:", err);
+      setError(`Failed to fetch affiliates: ${err.message}. Make sure the backend is running on http://localhost:5000`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (filterRef.current && !filterRef.current.contains(event.target))
@@ -64,27 +75,21 @@ function Affiliates() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Fetch data on component mount and when filters change
   useEffect(() => {
-    let filtered = affiliates.filter(
-      (a) =>
-        (a.name.toLowerCase().includes(search.toLowerCase()) ||
-          a.id.toLowerCase().includes(search.toLowerCase())) &&
-        (statusFilter ? a.status === statusFilter : true) &&
-        (locationFilter ? a.location === locationFilter : true),
-    );
-    setFilteredAffiliates(filtered);
-  }, [search, statusFilter, locationFilter, affiliates]);
+    fetchAffiliates();
+  }, [search, statusFilter, locationFilter]);
 
   const exportData = (type) => {
     const csvContent =
       "data:text/csv;charset=utf-8," +
       [
-        "Dealer ID,Name,Location,Affiliates,Orders,Total Sales,Commission,Status",
+        "Affiliate ID,Name,Location,Affiliates,Orders,Total Sales,Commission,Status",
       ]
         .concat(
-          filteredAffiliates.map(
+          affiliates.map(
             (a) =>
-              `${a.id},${a.name},${a.location},${a.affiliates},${a.orders},${a.totalSales},${a.commission},${a.status}`,
+              `${a._id},${a.name},${a.city},${a.affiliates},${a.orders},${a.totalSales},${a.commission},${a.status}`,
           ),
         )
         .join("\n");
@@ -106,7 +111,25 @@ function Affiliates() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleAddAffiliate = () => {
+  // Edit affiliate - Load affiliate data into form
+  const handleEditAffiliate = (affiliate) => {
+    setFormData({
+      name: affiliate.name,
+      profession: affiliate.profession,
+      email: affiliate.email,
+      phone: affiliate.phone,
+      dealer: affiliate.dealer,
+      address: affiliate.address,
+      city: affiliate.city,
+      state: affiliate.state,
+      pincode: affiliate.pincode,
+    });
+    setEditingId(affiliate._id);
+    setIsModalOpen(true);
+  };
+
+  // Create or Update affiliate - POST or PUT request
+  const handleAddAffiliate = async () => {
     const requiredFields = [
       "name",
       "profession",
@@ -118,6 +141,7 @@ function Affiliates() {
       "state",
       "pincode",
     ];
+    
     for (let field of requiredFields) {
       if (!formData[field].trim()) {
         alert(`Please fill ${field} field`);
@@ -125,31 +149,96 @@ function Affiliates() {
       }
     }
 
-    const newAffiliate = {
-      id: `AFL${String(affiliates.length + 1).padStart(3, "0")}`,
-      name: formData.name,
-      location: formData.city,
-      affiliates: 0,
-      orders: 0,
-      totalSales: 0,
-      commission: 0,
-      status: "Active",
-    };
+    try {
+      const method = editingId ? "PUT" : "POST";
+      const url = editingId ? `${API_BASE_URL}/${editingId}` : API_BASE_URL;
 
-    const updated = [...affiliates, newAffiliate];
-    setAffiliates(updated);
-    setFormData({
-      name: "",
-      profession: "",
-      email: "",
-      phone: "",
-      dealer: "",
-      address: "",
-      city: "",
-      state: "",
-      pincode: "",
-    });
-    setIsModalOpen(false);
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error("Backend Error Response:", data);
+        throw new Error(data.message || `HTTP ${response.status}: Failed to ${editingId ? 'update' : 'add'} affiliate`);
+      }
+
+      alert(`Affiliate ${editingId ? 'updated' : 'added'} successfully!`);
+      
+      // Reset form and refresh data
+      setFormData({
+        name: "",
+        profession: "",
+        email: "",
+        phone: "",
+        dealer: "",
+        address: "",
+        city: "",
+        state: "",
+        pincode: "",
+      });
+      setEditingId(null);
+      setIsModalOpen(false);
+      fetchAffiliates();
+    } catch (error) {
+      console.error("Full error details:", error);
+      alert(`Error: ${error.message}\n\nPlease check the browser console for more details.`);
+    }
+  };
+
+  // Delete affiliate - DELETE request
+  const handleDeleteAffiliate = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this affiliate?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to delete affiliate");
+      }
+
+      alert("Affiliate deleted successfully!");
+      fetchAffiliates();
+    } catch (error) {
+      console.error("Error deleting affiliate:", error);
+      alert(`Error: ${error.message}`);
+    }
+  };
+
+  // Update affiliate status - PATCH request
+  const handleUpdateStatus = async (id, currentStatus) => {
+    const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/${id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to update status");
+      }
+
+      alert("Status updated successfully!");
+      fetchAffiliates();
+    } catch (error) {
+      console.error("Error updating status:", error);
+      alert(`Error: ${error.message}`);
+    }
   };
 
   return (
@@ -251,7 +340,7 @@ function Affiliates() {
                     className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">All Locations</option>
-                    {[...new Set(affiliates.map((a) => a.location))].map(
+                    {[...new Set(affiliates.map((a) => a.city))].map(
                       (loc, idx) => (
                         <option key={idx} value={loc}>
                           {loc}
@@ -309,38 +398,66 @@ function Affiliates() {
             </tr>
           </thead>
           <tbody className="space-y-3">
-            {filteredAffiliates.map((item, index) => (
-              <tr
-                key={index}
-                className="bg-white shadow-sm rounded-lg hover:shadow-md transition"
-              >
-                <td className="p-4 font-medium">{item.id}</td>
-                <td className="p-4">{item.name}</td>
-                <td className="p-4">{item.location}</td>
-                <td className="p-4">{item.affiliates}</td>
-                <td className="p-4">{item.orders}</td>
-                <td className="p-4 font-semibold text-blue-600">
-                  ₹{item.totalSales.toLocaleString()}
-                </td>
-                <td className="p-4 font-semibold text-green-600">
-                  ₹{item.commission.toLocaleString()}
-                </td>
-                <td className="p-4">
-                  <span
-                    className={`px-3 py-1 text-xs md:text-sm font-semibold rounded-full ${
-                      item.status === "Active" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    {item.status}
-                  </span>
-                </td>
-                <td className="p-4 text-center">
-                  <button className="p-2 rounded-lg hover:bg-gray-100 transition">
-                    <FaEllipsisV />
-                  </button>
+            {loading ? (
+              <tr>
+                <td colSpan="9" className="p-4 text-center text-gray-500">
+                  Loading affiliates...
                 </td>
               </tr>
-            ))}
+            ) : affiliates.length === 0 ? (
+              <tr>
+                <td colSpan="9" className="p-4 text-center text-gray-500">
+                  No affiliates found
+                </td>
+              </tr>
+            ) : (
+              affiliates.map((item) => (
+                <tr
+                  key={item._id}
+                  className="bg-white shadow-sm rounded-lg hover:shadow-md transition"
+                >
+                  <td className="p-4 font-medium">{item._id}</td>
+                  <td className="p-4">{item.name}</td>
+                  <td className="p-4">{item.city}</td>
+                  <td className="p-4">{item.affiliates}</td>
+                  <td className="p-4">{item.orders}</td>
+                  <td className="p-4 font-semibold text-blue-600">
+                    ₹{item.totalSales.toLocaleString()}
+                  </td>
+                  <td className="p-4 font-semibold text-green-600">
+                    ₹{item.commission.toLocaleString()}
+                  </td>
+                  <td className="p-4">
+                    <span
+                      onClick={() => handleUpdateStatus(item._id, item.status)}
+                      className={`px-3 py-1 text-xs md:text-sm font-semibold rounded-full cursor-pointer transition ${
+                        item.status === "Active" ? "bg-green-100 text-green-700 hover:bg-green-200" : "bg-red-100 text-red-700 hover:bg-red-200"
+                      }`}
+                    >
+                      {item.status}
+                    </span>
+                  </td>
+                  <td className="p-4 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => handleEditAffiliate(item)}
+                        className="p-2 rounded-lg hover:bg-blue-100 transition text-blue-600"
+                        title="Edit"
+                      >
+                        <FaEdit />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteAffiliate(item._id)}
+                        className="p-2 rounded-lg hover:bg-red-100 transition text-red-600"
+                        title="Delete"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -348,7 +465,7 @@ function Affiliates() {
       {isModalOpen && (
   <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50 p-4 md:p-0">
     <div className="bg-white w-full max-w-2xl p-6 rounded-xl shadow-lg relative overflow-y-auto max-h-[90vh]">
-      <h2 className="text-xl md:text-2xl font-semibold mb-4">Add Affiliate</h2>
+      <h2 className="text-xl md:text-2xl font-semibold mb-4">{editingId ? "Edit Affiliate" : "Add Affiliate"}</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Full Name */}
         <div className="flex flex-col gap-1">
@@ -489,7 +606,21 @@ function Affiliates() {
       {/* Buttons */}
       <div className="flex flex-col md:flex-row justify-end gap-4 mt-6">
         <button
-          onClick={() => setIsModalOpen(false)}
+          onClick={() => {
+            setIsModalOpen(false);
+            setEditingId(null);
+            setFormData({
+              name: "",
+              profession: "",
+              email: "",
+              phone: "",
+              dealer: "",
+              address: "",
+              city: "",
+              state: "",
+              pincode: "",
+            });
+          }}
           className="px-4 py-2 border rounded hover:bg-gray-100"
         >
           Cancel
@@ -498,7 +629,7 @@ function Affiliates() {
           onClick={handleAddAffiliate}
           className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
         >
-          Add Affiliate
+          {editingId ? "Update Affiliate" : "Add Affiliate"}
         </button>
       </div>
     </div>

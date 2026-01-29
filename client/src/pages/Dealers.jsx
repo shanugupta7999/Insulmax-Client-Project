@@ -3,38 +3,24 @@ import {
   FaUserPlus,
   FaFilter,
   FaFileExport,
-  FaEllipsisV,
+  FaEdit,
+  FaTrash,
 } from "react-icons/fa";
 
-function Dealers() {
-  const [dealers, setDealers] = useState([
-    {
-      id: "DLR001",
-      businessName: "Rahul Traders",
-      ownerName: "Rahul Verma",
-      phone: "9876543210",
-      city: "Delhi",
-      state: "Delhi",
-      status: "Active",
-    },
-    {
-      id: "DLR002",
-      businessName: "Amit Enterprises",
-      ownerName: "Amit Sharma",
-      phone: "9123456789",
-      city: "Mumbai",
-      state: "Maharashtra",
-      status: "Inactive",
-    },
-  ]);
+const API_BASE_URL = "http://localhost:5000/api/dealers";
 
-  const [filteredDealers, setFilteredDealers] = useState(dealers);
+function Dealers() {
+  const [dealers, setDealers] = useState([]);
+  const [filteredDealers, setFilteredDealers] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [locationFilter, setLocationFilter] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [editingId, setEditingId] = useState(null);
 
   const [formData, setFormData] = useState({
     businessName: "",
@@ -54,6 +40,33 @@ function Dealers() {
   const filterRef = useRef(null);
   const exportRef = useRef(null);
 
+  // Fetch dealers from backend
+  const fetchDealers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const url = new URL(API_BASE_URL);
+      
+      if (search) url.searchParams.append("search", search);
+      if (statusFilter) url.searchParams.append("status", statusFilter);
+      if (locationFilter) url.searchParams.append("location", locationFilter);
+
+      const response = await fetch(url.toString());
+      
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      setDealers(data.data || []);
+    } catch (err) {
+      console.error("Error fetching dealers:", err);
+      setError(`Failed to fetch dealers: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (filterRef.current && !filterRef.current.contains(event.target))
@@ -65,25 +78,19 @@ function Dealers() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Fetch data on component mount and when filters change
   useEffect(() => {
-    let filtered = dealers.filter(
-      (d) =>
-        (d.businessName.toLowerCase().includes(search.toLowerCase()) ||
-          d.id.toLowerCase().includes(search.toLowerCase())) &&
-        (statusFilter ? d.status === statusFilter : true) &&
-        (locationFilter ? d.city === locationFilter : true),
-    );
-    setFilteredDealers(filtered);
-  }, [search, statusFilter, locationFilter, dealers]);
+    fetchDealers();
+  }, [search, statusFilter, locationFilter]);
 
   const exportData = (type) => {
     const csvContent =
       "data:text/csv;charset=utf-8," +
       ["Dealer ID,Business Name,Owner Name,Phone,City,State,Status"]
         .concat(
-          filteredDealers.map(
+          dealers.map(
             (d) =>
-              `${d.id},${d.businessName},${d.ownerName},${d.phone},${d.city},${d.state},${d.status}`,
+              `${d._id},${d.businessName},${d.ownerName},${d.phone},${d.city},${d.state},${d.status}`,
           ),
         )
         .join("\n");
@@ -109,34 +116,138 @@ function Dealers() {
     setFormData({ ...formData, image: e.target.files[0] });
   };
 
-  const handleAddDealer = () => {
-    const newDealer = {
-      id: `DLR${String(dealers.length + 1).padStart(3, "0")}`,
-      businessName: formData.businessName,
-      ownerName: formData.ownerName,
-      phone: formData.phone,
-      city: formData.city,
-      state: formData.state,
-      status: "Active",
-    };
-
-    setDealers([...dealers, newDealer]);
-    setIsModalOpen(false);
-
+  // Edit dealer - Load dealer data into form
+  const handleEditDealer = (dealer) => {
     setFormData({
-      businessName: "",
-      ownerName: "",
-      email: "",
-      phone: "",
-      location: "",
-      tehsil: "",
-      city: "",
-      state: "",
-      pincode: "",
-      gst: "",
-      address: "",
+      businessName: dealer.businessName,
+      ownerName: dealer.ownerName,
+      email: dealer.email,
+      phone: dealer.phone,
+      location: dealer.location || "",
+      tehsil: dealer.tehsil || "",
+      city: dealer.city,
+      state: dealer.state,
+      pincode: dealer.pincode,
+      gst: dealer.gst || "",
+      address: dealer.address,
       image: null,
     });
+    setEditingId(dealer._id);
+    setIsModalOpen(true);
+  };
+
+  // Create or Update dealer
+  const handleAddDealer = async () => {
+    const requiredFields = [
+      "businessName",
+      "ownerName",
+      "email",
+      "phone",
+      "city",
+      "state",
+      "pincode",
+      "address",
+    ];
+    
+    for (let field of requiredFields) {
+      if (!formData[field].trim()) {
+        alert(`Please fill ${field} field`);
+        return;
+      }
+    }
+
+    try {
+      const method = editingId ? "PUT" : "POST";
+      const url = editingId ? `${API_BASE_URL}/${editingId}` : API_BASE_URL;
+
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP ${response.status}: Failed to ${editingId ? 'update' : 'add'} dealer`);
+      }
+
+      alert(`Dealer ${editingId ? 'updated' : 'added'} successfully!`);
+      
+      // Reset form and refresh data
+      setFormData({
+        businessName: "",
+        ownerName: "",
+        email: "",
+        phone: "",
+        location: "",
+        tehsil: "",
+        city: "",
+        state: "",
+        pincode: "",
+        gst: "",
+        address: "",
+        image: null,
+      });
+      setEditingId(null);
+      setIsModalOpen(false);
+      fetchDealers();
+    } catch (error) {
+      console.error("Error:", error);
+      alert(`Error: ${error.message}`);
+    }
+  };
+
+  // Delete dealer
+  const handleDeleteDealer = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this dealer?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to delete dealer");
+      }
+
+      alert("Dealer deleted successfully!");
+      fetchDealers();
+    } catch (error) {
+      console.error("Error deleting dealer:", error);
+      alert(`Error: ${error.message}`);
+    }
+  };
+
+  // Update dealer status
+  const handleUpdateStatus = async (id, currentStatus) => {
+    const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/${id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to update status");
+      }
+
+      alert("Status updated successfully!");
+      fetchDealers();
+    } catch (error) {
+      console.error("Error updating status:", error);
+      alert(`Error: ${error.message}`);
+    }
   };
 
   return (
@@ -257,30 +368,60 @@ function Dealers() {
             </tr>
           </thead>
           <tbody>
-            {filteredDealers.map((item, index) => (
-              <tr key={index} className=" border border-gray-100">
-                <td className="p-2 md:p-4">{item.id}</td>
-                <td className="p-2 md:p-4">{item.businessName}</td>
-                <td className="p-2 md:p-4">{item.ownerName}</td>
-                <td className="p-2 md:p-4">{item.phone}</td>
-                <td className="p-2 md:p-4">{item.city}</td>
-                <td className="p-2 md:p-4">{item.state}</td>
-                <td className="p-2 md:p-4">
-                  <span
-                    className={`px-2 md:px-3 py-1 rounded-full text-xs md:text-sm ${
-                      item.status === "Active"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
-                    }`}
-                  >
-                    {item.status}
-                  </span>
-                </td>
-                <td className="p-2 md:p-4 text-center">
-                  <FaEllipsisV />
+            {loading ? (
+              <tr>
+                <td colSpan="8" className="p-4 text-center text-gray-500">
+                  Loading dealers...
                 </td>
               </tr>
-            ))}
+            ) : dealers.length === 0 ? (
+              <tr>
+                <td colSpan="8" className="p-4 text-center text-gray-500">
+                  No dealers found
+                </td>
+              </tr>
+            ) : (
+              dealers.map((item) => (
+                <tr key={item._id} className=" border border-gray-100">
+                  <td className="p-2 md:p-4">{item._id}</td>
+                  <td className="p-2 md:p-4">{item.businessName}</td>
+                  <td className="p-2 md:p-4">{item.ownerName}</td>
+                  <td className="p-2 md:p-4">{item.phone}</td>
+                  <td className="p-2 md:p-4">{item.city}</td>
+                  <td className="p-2 md:p-4">{item.state}</td>
+                  <td className="p-2 md:p-4">
+                    <span
+                      onClick={() => handleUpdateStatus(item._id, item.status)}
+                      className={`px-2 md:px-3 py-1 rounded-full text-xs md:text-sm cursor-pointer transition ${
+                        item.status === "Active"
+                          ? "bg-green-100 text-green-700 hover:bg-green-200"
+                          : "bg-red-100 text-red-700 hover:bg-red-200"
+                      }`}
+                    >
+                      {item.status}
+                    </span>
+                  </td>
+                  <td className="p-2 md:p-4 text-center">
+                    <div className="flex items-center justify-center gap-2">
+                      <button
+                        onClick={() => handleEditDealer(item)}
+                        className="p-2 rounded-lg hover:bg-blue-100 transition text-blue-600"
+                        title="Edit"
+                      >
+                        <FaEdit />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteDealer(item._id)}
+                        className="p-2 rounded-lg hover:bg-red-100 transition text-red-600"
+                        title="Delete"
+                      >
+                        <FaTrash />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -290,7 +431,7 @@ function Dealers() {
         <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50 p-4 md:p-0">
           <div className="bg-white w-full max-w-2xl p-4 md:p-6 rounded-xl shadow-lg overflow-y-auto max-h-[90vh]">
             <h2 className="text-xl md:text-2xl font-semibold mb-4">
-              Add Dealer
+              {editingId ? "Edit Dealer" : "Add Dealer"}
             </h2>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4">
@@ -405,7 +546,24 @@ function Dealers() {
 
             <div className="flex flex-col md:flex-row justify-end gap-4 mt-6">
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setEditingId(null);
+                  setFormData({
+                    businessName: "",
+                    ownerName: "",
+                    email: "",
+                    phone: "",
+                    location: "",
+                    tehsil: "",
+                    city: "",
+                    state: "",
+                    pincode: "",
+                    gst: "",
+                    address: "",
+                    image: null,
+                  });
+                }}
                 className="px-4 py-2 md:px-5 md:py-2.5 border rounded-lg hover:bg-gray-100"
               >
                 Cancel
@@ -414,7 +572,7 @@ function Dealers() {
                 onClick={handleAddDealer}
                 className="px-5 py-2 md:px-6 md:py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                Add Dealer
+                {editingId ? "Update Dealer" : "Add Dealer"}
               </button>
             </div>
           </div>

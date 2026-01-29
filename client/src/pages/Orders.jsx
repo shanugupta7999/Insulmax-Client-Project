@@ -3,25 +3,18 @@ import {
   FaUserPlus,
   FaFilter,
   FaFileExport,
-  FaEllipsisV,
+  FaEdit,
+  FaTrash,
 } from "react-icons/fa";
 
-function Orders() {
-  const [orders, setOrders] = useState([
-    {
-      id: "ORD001",
-      affiliate: "Rahul Traders",
-      dealer: "ABC Distributors",
-      customer: "Amit Kumar",
-      product: "Pesticide X",
-      amount: 4500,
-      commission: 350,
-      date: "2026-01-25",
-      status: "Pending",
-    },
-  ]);
+const API_BASE_URL = "http://localhost:5000/api/orders";
 
-  const [filteredOrders, setFilteredOrders] = useState(orders);
+function Orders() {
+  const [orders, setOrders] = useState([]);
+  const [filteredOrders, setFilteredOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [editingId, setEditingId] = useState(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -44,6 +37,29 @@ function Orders() {
   const filterRef = useRef(null);
   const exportRef = useRef(null);
 
+  // Fetch orders from backend
+  const fetchOrders = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const url = new URL(API_BASE_URL);
+      if (search) url.searchParams.append("search", search);
+      if (statusFilter) url.searchParams.append("status", statusFilter);
+
+      const response = await fetch(url.toString());
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const data = await response.json();
+      const list = data.data || [];
+      setOrders(list);
+      setFilteredOrders(list);
+    } catch (err) {
+      console.error("Error fetching orders:", err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (filterRef.current && !filterRef.current.contains(e.target))
@@ -55,26 +71,19 @@ function Orders() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Fetch data on mount and when filters change
   useEffect(() => {
-    let filtered = orders.filter(
-      (o) =>
-        (o.id.toLowerCase().includes(search.toLowerCase()) ||
-          o.customer.toLowerCase().includes(search.toLowerCase())) &&
-        (statusFilter ? o.status === statusFilter : true)
-    );
-    setFilteredOrders(filtered);
-  }, [search, statusFilter, orders]);
+    fetchOrders();
+  }, [search, statusFilter]);
 
   const exportData = () => {
     const csv =
       "data:text/csv;charset=utf-8," +
-      [
-        "Order ID,Affiliate,Dealer,Customer,Product,Amount,Commission,Date,Status",
-      ]
+      ["Order ID,Affiliate,Dealer,Customer,Product,Amount,Commission,Date,Status"]
         .concat(
-          filteredOrders.map(
+          orders.map(
             (o) =>
-              `${o.id},${o.affiliate},${o.dealer},${o.customer},${o.product},${o.amount},${o.commission},${o.date},${o.status}`
+              `${o.orderNumber || o.id},${o.affiliate || "-"},${o.dealer || "-"},${o.customerName || o.customer || "-"},${o.product || "-"},${o.totalAmount || o.amount || 0},${o.estimatedCommission || o.commission || 0},${(o.createdAt||o.date)||"-"},${o.status}`
           )
         )
         .join("\n");
@@ -90,39 +99,115 @@ function Orders() {
 
   const handleChange = (e) =>
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  // Edit order - load into modal
+  const handleEditOrder = (order) => {
+    setFormData({
+      dealer: order.dealer || "",
+      affiliate: order.affiliate || "",
+      customerName: order.customerName || order.customer || "",
+      customerPhone: order.customerPhone || "",
+      customerAddress: order.customerAddress || "",
+      product: order.product || "",
+      quantity: order.quantity || order.quantity || "",
+      totalAmount: order.totalAmount || order.amount || "",
+      estimatedCommission: order.estimatedCommission || order.commission || "",
+      notes: order.notes || "",
+    });
+    setEditingId(order._id || order.id);
+    setIsModalOpen(true);
+  };
 
-  const handleAddOrder = () => {
+  // Create or update order
+  const handleAddOrder = async () => {
     if (!formData.dealer || !formData.customerName || !formData.product) {
       alert("Please fill all required fields");
       return;
     }
 
-    const newOrder = {
-      id: `ORD${String(orders.length + 1).padStart(3, "0")}`,
-      affiliate: formData.affiliate || "-",
-      dealer: formData.dealer,
-      customer: formData.customerName,
-      product: formData.product,
-      amount: Number(formData.totalAmount),
-      commission: Number(formData.estimatedCommission),
-      date: new Date().toISOString().slice(0, 10),
-      status: "Pending",
-    };
+    try {
+      const method = editingId ? "PUT" : "POST";
+      const url = editingId ? `${API_BASE_URL}/${editingId}` : API_BASE_URL;
 
-    setOrders([...orders, newOrder]);
-    setIsModalOpen(false);
-    setFormData({
-      dealer: "",
-      affiliate: "",
-      customerName: "",
-      customerPhone: "",
-      customerAddress: "",
-      product: "",
-      quantity: "",
-      totalAmount: "",
-      estimatedCommission: "",
-      notes: "",
-    });
+      const payload = {
+        affiliate: formData.affiliate,
+        dealer: formData.dealer,
+        customerName: formData.customerName,
+        customerPhone: formData.customerPhone,
+        customerAddress: formData.customerAddress,
+        product: formData.product,
+        quantity: Number(formData.quantity) || 1,
+        totalAmount: Number(formData.totalAmount) || 0,
+        estimatedCommission: Number(formData.estimatedCommission) || 0,
+        notes: formData.notes,
+      };
+
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`);
+
+      alert(`Order ${editingId ? 'updated' : 'created'} successfully`);
+      setFormData({
+        dealer: "",
+        affiliate: "",
+        customerName: "",
+        customerPhone: "",
+        customerAddress: "",
+        product: "",
+        quantity: "",
+        totalAmount: "",
+        estimatedCommission: "",
+        notes: "",
+      });
+      setEditingId(null);
+      setIsModalOpen(false);
+      fetchOrders();
+    } catch (err) {
+      console.error("Error saving order:", err);
+      alert(`Error: ${err.message}`);
+    }
+  };
+
+  // Delete order
+  const handleDeleteOrder = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this order?")) return;
+    try {
+      const res = await fetch(`${API_BASE_URL}/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.message || `HTTP ${res.status}`);
+      }
+      alert("Order deleted");
+      fetchOrders();
+    } catch (err) {
+      console.error("Error deleting order:", err);
+      alert(`Error: ${err.message}`);
+    }
+  };
+
+  // Update order status
+  const handleUpdateStatus = async (id, currentStatus) => {
+    const newStatus = currentStatus === "Approved" ? "Pending" : "Approved";
+    try {
+      const res = await fetch(`${API_BASE_URL}/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) {
+        const d = await res.json();
+        throw new Error(d.message || `HTTP ${res.status}`);
+      }
+      alert("Status updated");
+      fetchOrders();
+    } catch (err) {
+      console.error("Error updating status:", err);
+      alert(`Error: ${err.message}`);
+    }
   };
 
   return (
@@ -254,27 +339,43 @@ function Orders() {
           <tbody>
             {filteredOrders.map((o, i) => (
               <tr key={i} className="hover:bg-gray-50">
-                <td className="p-4">{o.id}</td>
-                <td className="p-4">{o.affiliate}</td>
+                <td className="p-4">{o.orderNumber || o.id}</td>
+                <td className="p-4">{o.affiliate || "-"}</td>
                 <td className="p-4">{o.dealer}</td>
-                <td className="p-4">{o.customer}</td>
+                <td className="p-4">{o.customerName || o.customer}</td>
                 <td className="p-4">{o.product}</td>
-                <td className="p-4 font-semibold text-blue-600">₹{o.amount}</td>
-                <td className="p-4 font-semibold text-green-600">₹{o.commission}</td>
-                <td className="p-4">{o.date}</td>
+                <td className="p-4 font-semibold text-blue-600">₹{o.totalAmount || o.amount}</td>
+                <td className="p-4 font-semibold text-green-600">₹{o.estimatedCommission || o.commission}</td>
+                <td className="p-4">{(o.createdAt || o.date) ? (o.createdAt ? new Date(o.createdAt).toISOString().slice(0,10) : o.date) : "-"}</td>
                 <td className="p-4">
                   <span
-                    className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                    onClick={() => handleUpdateStatus(o._id || o.id, o.status)}
+                    className={`px-3 py-1 rounded-full text-xs font-semibold cursor-pointer ${
                       o.status === "Approved"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-yellow-100 text-yellow-700"
+                        ? "bg-green-100 text-green-700 hover:bg-green-200"
+                        : "bg-yellow-100 text-yellow-700 hover:bg-yellow-200"
                     }`}
                   >
                     {o.status}
                   </span>
                 </td>
                 <td className="p-4 text-center">
-                  <FaEllipsisV />
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => handleEditOrder(o)}
+                      className="p-2 rounded-lg hover:bg-blue-100 transition text-blue-600"
+                      title="Edit"
+                    >
+                      <FaEdit />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteOrder(o._id || o.id)}
+                      className="p-2 rounded-lg hover:bg-red-100 transition text-red-600"
+                      title="Delete"
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}

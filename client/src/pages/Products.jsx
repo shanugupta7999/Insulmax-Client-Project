@@ -2,39 +2,25 @@ import React, { useState, useEffect, useRef } from "react";
 import {
   FaFilter,
   FaFileExport,
-  FaEllipsisV,
+  FaEdit,
+  FaTrash,
   FaPlus,
 } from "react-icons/fa";
 
-function Products() {
-  const [products, setProducts] = useState([
-    {
-      id: "PRD001",
-      name: "Wireless Mouse",
-      category: "Electronics",
-      price: 799,
-      variants: 2,
-      commission: "A",
-      status: "Active",
-    },
-    {
-      id: "PRD002",
-      name: "Bluetooth Speaker",
-      category: "Electronics",
-      price: 1999,
-      variants: 3,
-      commission: "D",
-      status: "Inactive",
-    },
-  ]);
+const API_BASE_URL = "http://localhost:5000/api/products";
 
-  const [filteredProducts, setFilteredProducts] = useState(products);
+function Products() {
+  const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [editingId, setEditingId] = useState(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -52,6 +38,35 @@ function Products() {
   const filterRef = useRef(null);
   const exportRef = useRef(null);
 
+  // Fetch products from backend
+  const fetchProducts = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const url = new URL(API_BASE_URL);
+      
+      if (search) url.searchParams.append("search", search);
+      if (statusFilter) url.searchParams.append("status", statusFilter);
+      if (categoryFilter) url.searchParams.append("category", categoryFilter);
+
+      const response = await fetch(url.toString());
+      
+      if (!response.ok) {
+        throw new Error(`HTTP Error: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const list = data.data || [];
+      setProducts(list);
+      setFilteredProducts(list);
+    } catch (err) {
+      console.error("Error fetching products:", err);
+      setError(`Failed to fetch products: ${err.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Click outside to close filter/export
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -64,17 +79,10 @@ function Products() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Search + filters
+  // Fetch data on component mount and when filters change
   useEffect(() => {
-    let filtered = products.filter(
-      (p) =>
-        (p.name.toLowerCase().includes(search.toLowerCase()) ||
-          p.id.toLowerCase().includes(search.toLowerCase())) &&
-        (statusFilter ? p.status === statusFilter : true) &&
-        (categoryFilter ? p.category === categoryFilter : true)
-    );
-    setFilteredProducts(filtered);
-  }, [search, statusFilter, categoryFilter, products]);
+    fetchProducts();
+  }, [search, statusFilter, categoryFilter]);
 
   // Handle form change
   const handleChange = (e) => {
@@ -110,34 +118,122 @@ function Products() {
   };
 
   // Add product
-  const handleAddProduct = () => {
-    const newProduct = {
-      id: `PRD${Math.floor(Math.random() * 1000)
-        .toString()
-        .padStart(3, "0")}`,
-      name: formData.name,
-      category: formData.category,
-      price: formData.finalPrice || formData.basePrice,
-      variants: variants.length,
-      commission: "A",
-      status: "Active",
-    };
-
-    setProducts((prev) => [...prev, newProduct]);
-    setFilteredProducts((prev) => [...prev, newProduct]);
-    setIsModalOpen(false);
+  const handleEditProduct = (product) => {
     setFormData({
-      name: "",
-      offer: "",
-      description: "",
-      category: "",
-      subcategory: "",
-      basePrice: "",
-      discount: "",
-      finalPrice: "",
+      name: product.name,
+      offer: product.offer || "",
+      description: product.description || "",
+      category: product.category,
+      subcategory: product.subcategory || "",
+      basePrice: product.basePrice,
+      discount: product.discount || 0,
+      finalPrice: product.finalPrice,
     });
-    setVariants([{ name: "", price: "", sku: "" }]);
+    setVariants(product.variants || [{ name: "", price: "", sku: "" }]);
+    setEditingId(product._id);
+    setIsModalOpen(true);
   };
+
+  // Create or Update product
+  const handleAddProduct = async () => {
+    if (!formData.name.trim() || !formData.category.trim() || !formData.basePrice) {
+      alert("Please fill required fields: Name, Category, Base Price");
+      return;
+    }
+
+    try {
+      const method = editingId ? "PUT" : "POST";
+      const url = editingId ? `${API_BASE_URL}/${editingId}` : API_BASE_URL;
+
+      const response = await fetch(url, {
+        method: method,
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          ...formData,
+          variants: variants.filter(v => v.name && v.price),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || `HTTP ${response.status}: Failed to ${editingId ? 'update' : 'add'} product`);
+      }
+
+      alert(`Product ${editingId ? 'updated' : 'added'} successfully!`);
+      
+      // Reset form and refresh data
+      setFormData({
+        name: "",
+        offer: "",
+        description: "",
+        category: "",
+        subcategory: "",
+        basePrice: "",
+        discount: "",
+        finalPrice: "",
+      });
+      setVariants([{ name: "", price: "", sku: "" }]);
+      setEditingId(null);
+      setIsModalOpen(false);
+      fetchProducts();
+    } catch (error) {
+      console.error("Error:", error);
+      alert(`Error: ${error.message}`);
+    }
+  };
+
+  // Delete product
+  const handleDeleteProduct = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this product?")) {
+      return;
+    }
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/${id}`, {
+        method: "DELETE",
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to delete product");
+      }
+
+      alert("Product deleted successfully!");
+      fetchProducts();
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      alert(`Error: ${error.message}`);
+    }
+  };
+
+  // Update product status
+  const handleUpdateStatus = async (id, currentStatus) => {
+    const newStatus = currentStatus === "Active" ? "Inactive" : "Active";
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/${id}/status`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.message || "Failed to update status");
+      }
+
+      alert("Status updated successfully!");
+      fetchProducts();
+    } catch (error) {
+      console.error("Error updating status:", error);
+      alert(`Error: ${error.message}`);
+    }
+  }
 
   // Export
   const exportData = (type) => {
@@ -145,9 +241,9 @@ function Products() {
       "data:text/csv;charset=utf-8," +
       ["ID,Name,Category,Price,Variants,Commission,Status"]
         .concat(
-          filteredProducts.map(
+          products.map(
             (p) =>
-              `${p.id},${p.name},${p.category},${p.price},${p.variants},${p.commission},${p.status}`
+              `${p._id},${p.name},${p.category},${p.finalPrice || p.basePrice},${p.variants.length},${p.commission},${p.status}`
           )
         )
         .join("\n");
@@ -302,23 +398,39 @@ function Products() {
                 <td className="p-4 font-medium">{item.name}</td>
                 <td className="p-4">{item.category}</td>
                 <td className="p-4 font-semibold text-blue-600">
-                  ₹{item.price}
+                  ₹{item.finalPrice || item.basePrice}
                 </td>
-                <td className="p-4">{item.variants}</td>
+                <td className="p-4">{item.variants.length}</td>
                 <td className="p-4">{item.commission}</td>
                 <td className="p-4">
                   <span
-                    className={`px-3 py-1 text-xs rounded-full font-semibold ${
+                    onClick={() => handleUpdateStatus(item._id, item.status)}
+                    className={`px-3 py-1 text-xs rounded-full font-semibold cursor-pointer transition ${
                       item.status === "Active"
-                        ? "bg-green-100 text-green-700"
-                        : "bg-red-100 text-red-700"
+                        ? "bg-green-100 text-green-700 hover:bg-green-200"
+                        : "bg-red-100 text-red-700 hover:bg-red-200"
                     }`}
                   >
                     {item.status}
                   </span>
                 </td>
                 <td className="p-4 text-center">
-                  <FaEllipsisV className="cursor-pointer" />
+                  <div className="flex items-center justify-center gap-2">
+                    <button
+                      onClick={() => handleEditProduct(item)}
+                      className="p-2 rounded-lg hover:bg-blue-100 transition text-blue-600"
+                      title="Edit"
+                    >
+                      <FaEdit />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteProduct(item._id)}
+                      className="p-2 rounded-lg hover:bg-red-100 transition text-red-600"
+                      title="Delete"
+                    >
+                      <FaTrash />
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
@@ -330,7 +442,7 @@ function Products() {
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
           <div className="bg-white w-full max-w-3xl p-6 rounded-xl shadow-lg overflow-y-auto max-h-[90vh]">
-            <h2 className="text-xl font-semibold mb-4">Add Product</h2>
+            <h2 className="text-xl font-semibold mb-4">{editingId ? "Edit Product" : "Add Product"}</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {/* Product Name */}
@@ -516,7 +628,21 @@ function Products() {
             {/* Buttons */}
             <div className="flex justify-end gap-4 mt-6">
               <button
-                onClick={() => setIsModalOpen(false)}
+                onClick={() => {
+                  setIsModalOpen(false);
+                  setEditingId(null);
+                  setFormData({
+                    name: "",
+                    offer: "",
+                    description: "",
+                    category: "",
+                    subcategory: "",
+                    basePrice: "",
+                    discount: "",
+                    finalPrice: "",
+                  });
+                  setVariants([{ name: "", price: "", sku: "" }]);
+                }}
                 className="px-4 py-2 border rounded-lg hover:bg-gray-100"
               >
                 Cancel
@@ -525,7 +651,7 @@ function Products() {
                 onClick={handleAddProduct}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                Save Product
+                {editingId ? "Update Product" : "Save Product"}
               </button>
             </div>
           </div>

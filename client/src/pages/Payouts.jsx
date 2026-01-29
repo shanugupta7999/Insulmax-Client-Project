@@ -1,33 +1,12 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FaFilter, FaFileExport, FaMoneyCheckAlt } from "react-icons/fa";
 
-function Payouts() {
-  const [payouts, setPayouts] = useState([
-    {
-      id: "PYT001",
-      type: "Affiliate",
-      name: "Rahul Traders",
-      orders: 120,
-      totalAmount: 90000,
-      affiliateShare: 81000,
-      dealerShare: 9000,
-      date: "2026-01-25",
-      status: "Pending",
-    },
-    {
-      id: "PYT002",
-      type: "Dealer",
-      name: "Amit Enterprises",
-      orders: 80,
-      totalAmount: 60000,
-      affiliateShare: 54000,
-      dealerShare: 6000,
-      date: "2026-01-22",
-      status: "Completed",
-    },
-  ]);
+const API_BASE = "http://localhost:5000/api/payouts";
 
-  const [filtered, setFiltered] = useState(payouts);
+function Payouts() {
+  const [payouts, setPayouts] = useState([]);
+
+  const [filtered, setFiltered] = useState([]);
   const [statusFilter, setStatusFilter] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -36,35 +15,68 @@ function Payouts() {
   const filterRef = useRef();
 
   useEffect(() => {
+    // when payouts or status filter changes, apply client-side status filter
     setFiltered(
       payouts.filter((p) => (statusFilter ? p.status === statusFilter : true)),
     );
   }, [statusFilter, payouts]);
 
   useEffect(() => {
-    let data = payouts.filter(
-      (p) =>
-        (p.name.toLowerCase().includes(search.toLowerCase()) ||
-          p.id.toLowerCase().includes(search.toLowerCase())) &&
-        (statusFilter ? p.status === statusFilter : true),
-    );
-    setFiltered(data);
-  }, [search, statusFilter, payouts]);
+    // fetch from server when search or status filter changes
+    fetchPayouts();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, statusFilter]);
+
+  useEffect(() => {
+    // keep filtered in sync if payouts change without search/status param
+    if (!search && !statusFilter) setFiltered(payouts);
+  }, [payouts, search, statusFilter]);
+
+  const fetchPayouts = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (search) params.append("search", search);
+      if (statusFilter) params.append("status", statusFilter);
+
+      const res = await fetch(`${API_BASE}?${params.toString()}`);
+      const json = await res.json();
+      if (json.success) {
+        // server returns payouts with fields like payoutNumber and _id
+        setPayouts(json.data);
+        setFiltered(json.data);
+      }
+    } catch (err) {
+      console.error("Error fetching payouts", err);
+    }
+  };
 
   const pendingPayouts = payouts.filter((p) => p.status === "Pending");
-  const pendingAmount = pendingPayouts.reduce((s, p) => s + p.totalAmount, 0);
+  const pendingAmount = pendingPayouts.reduce((s, p) => s + (p.totalAmount || 0), 0);
   const paidThisMonth = payouts
     .filter((p) => p.status === "Completed")
     .reduce((s, p) => s + p.totalAmount, 0);
   const totalPaid = paidThisMonth;
 
-  const handleConfirmPayment = () => {
-    setPayouts((prev) =>
-      prev.map((p) =>
-        p.id === selected.id ? { ...p, status: "Completed" } : p,
-      ),
-    );
-    setSelected(null);
+  const handleConfirmPayment = async () => {
+    if (!selected) return;
+    try {
+      const id = selected._id || selected.id;
+      const res = await fetch(`${API_BASE}/${id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: "Completed" }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        // update local list
+        setPayouts((prev) => prev.map((p) => (p._id === json.data._id ? json.data : p)));
+        setSelected(null);
+      } else {
+        console.error("Failed to update status", json.message);
+      }
+    } catch (err) {
+      console.error("Error confirming payout", err);
+    }
   };
 
   return (
@@ -173,14 +185,14 @@ function Payouts() {
           </thead>
           <tbody>
             {filtered.map((p) => (
-              <tr key={p.id} className=" hover:bg-gray-50">
-                <td className="p-4">{p.id}</td>
+              <tr key={p._id || p.id} className=" hover:bg-gray-50">
+                <td className="p-4">{p.payoutNumber || p.id}</td>
                 <td className="p-4">{p.type}</td>
                 <td className="p-4">{p.name}</td>
-                <td className="p-4">{p.orders}</td>
-                <td className="p-4 text-green-600">₹{p.affiliateShare}</td>
-                <td className="p-4 text-blue-600">₹{p.dealerShare}</td>
-                <td className="p-4">{p.date}</td>
+                <td className="p-4">{p.orders || 0}</td>
+                <td className="p-4 text-green-600">₹{p.affiliateShare || 0}</td>
+                <td className="p-4 text-blue-600">₹{p.dealerShare || 0}</td>
+                <td className="p-4">{p.date ? new Date(p.date).toLocaleDateString() : "-"}</td>
                 <td className="p-4">
                   <span
                     className={`px-3 py-1 rounded-full text-sm font-semibold ${

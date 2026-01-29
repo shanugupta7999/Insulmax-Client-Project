@@ -1,45 +1,18 @@
 import React, { useState, useEffect, useRef } from "react";
 import { FaFilter, FaFileExport, FaTrash, FaEdit } from "react-icons/fa";
 
-function Offers() {
-  const [offers, setOffers] = useState([
-    {
-      id: "OF001",
-      name: "New Year Sale",
-      code: "NY2026",
-      discountValue: 20,
-      discountType: "Percentage",
-      validFrom: "2026-01-01",
-      validTo: "2026-01-31",
-      usage: 45,
-      minOrder: 500,
-      maxDiscount: 1000,
-      usageLimit: 100,
-      status: "Active",
-    },
-    {
-      id: "OF002",
-      name: "Flat 100 Off",
-      code: "FLAT100",
-      discountValue: 100,
-      discountType: "Fixed",
-      validFrom: "2026-02-01",
-      validTo: "2026-02-28",
-      usage: 70,
-      minOrder: 1000,
-      maxDiscount: null,
-      usageLimit: null,
-      status: "Inactive",
-    },
-  ]);
+const API_BASE = "http://localhost:5000/api/offers";
 
-  const [filteredOffers, setFilteredOffers] = useState(offers);
+function Offers() {
+  const [offers, setOffers] = useState([]);
+  const [filteredOffers, setFilteredOffers] = useState([]);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isExportOpen, setIsExportOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedOffer, setSelectedOffer] = useState(null);
+  const [editingId, setEditingId] = useState(null);
 
   const filterRef = useRef(null);
   const exportRef = useRef(null);
@@ -68,6 +41,34 @@ function Offers() {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
+  // Fetch offers on mount
+  useEffect(() => {
+    fetchOffers();
+  }, []);
+
+  const fetchOffers = async () => {
+    try {
+      const params = new URLSearchParams();
+      if (search) params.append("search", search);
+      if (statusFilter) params.append("status", statusFilter);
+
+      const res = await fetch(`${API_BASE}?${params.toString()}`);
+      const json = await res.json();
+      if (json.success) {
+        setOffers(json.data);
+        setFilteredOffers(json.data);
+      }
+    } catch (err) {
+      console.error("Error fetching offers", err);
+    }
+  };
+
+  // Refetch when search or statusFilter changes
+  useEffect(() => {
+    fetchOffers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search, statusFilter]);
+
   // Filter + Search
   useEffect(() => {
     const filtered = offers.filter(
@@ -83,56 +84,92 @@ function Offers() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  const handleAddOffer = () => {
+  const handleAddOffer = async () => {
     const requiredFields = ["name", "code", "discountValue", "discountType", "validFrom", "validTo", "minOrder"];
     for (let field of requiredFields) {
-      if (!formData[field].trim()) {
+      if (!formData[field].toString().trim()) {
         alert(`Please fill ${field}`);
         return;
       }
     }
 
-    const newOffer = {
-      id: `OF${String(offers.length + 1).padStart(3, "0")}`,
-      name: formData.name,
-      code: formData.code,
-      discountValue: parseFloat(formData.discountValue),
-      discountType: formData.discountType,
-      validFrom: formData.validFrom,
-      validTo: formData.validTo,
-      minOrder: parseFloat(formData.minOrder),
-      maxDiscount: formData.maxDiscount ? parseFloat(formData.maxDiscount) : null,
-      usageLimit: formData.usageLimit ? parseInt(formData.usageLimit) : null,
-      usage: 0,
-      status: "Active",
-    };
+    try {
+      const payload = {
+        name: formData.name,
+        code: formData.code,
+        discountValue: parseFloat(formData.discountValue),
+        discountType: formData.discountType,
+        validFrom: formData.validFrom,
+        validTo: formData.validTo,
+        minOrder: parseFloat(formData.minOrder),
+        maxDiscount: formData.maxDiscount ? parseFloat(formData.maxDiscount) : null,
+        usageLimit: formData.usageLimit ? parseInt(formData.usageLimit) : null,
+      };
 
-    setOffers([...offers, newOffer]);
+      const method = editingId ? "PUT" : "POST";
+      const url = editingId ? `${API_BASE}/${editingId}` : API_BASE;
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const json = await res.json();
+      if (json.success) {
+        await fetchOffers();
+        setFormData({
+          name: "",
+          code: "",
+          discountValue: "",
+          discountType: "Percentage",
+          validFrom: "",
+          validTo: "",
+          minOrder: "",
+          maxDiscount: "",
+          usageLimit: "",
+        });
+        setEditingId(null);
+        setIsModalOpen(false);
+      } else {
+        alert("Error: " + json.message);
+      }
+    } catch (err) {
+      console.error("Error saving offer", err);
+      alert("Error saving offer");
+    }
+  };
+
+  const handleEditOffer = (offer) => {
+    setEditingId(offer._id || offer.id);
     setFormData({
-      name: "",
-      code: "",
-      discountValue: "",
-      discountType: "Percentage",
-      validFrom: "",
-      validTo: "",
-      minOrder: "",
-      maxDiscount: "",
-      usageLimit: "",
+      name: offer.name,
+      code: offer.code,
+      discountValue: offer.discountValue,
+      discountType: offer.discountType,
+      validFrom: offer.validFrom ? offer.validFrom.split("T")[0] : "",
+      validTo: offer.validTo ? offer.validTo.split("T")[0] : "",
+      minOrder: offer.minOrder,
+      maxDiscount: offer.maxDiscount || "",
+      usageLimit: offer.usageLimit || "",
     });
-    setIsModalOpen(false);
+    setIsModalOpen(true);
   };
 
-  const toggleStatus = (id) => {
-    setOffers(
-      offers.map((o) =>
-        o.id === id ? { ...o, status: o.status === "Active" ? "Inactive" : "Active" } : o
-      )
-    );
-  };
-
-  const deleteOffer = (id) => {
+  const handleDeleteOffer = async (id) => {
     if (window.confirm("Are you sure you want to delete this offer?")) {
-      setOffers(offers.filter((o) => o.id !== id));
+      try {
+        const res = await fetch(`${API_BASE}/${id}`, { method: "DELETE" });
+        const json = await res.json();
+        if (json.success) {
+          await fetchOffers();
+        } else {
+          alert("Error: " + json.message);
+        }
+      } catch (err) {
+        console.error("Error deleting offer", err);
+        alert("Error deleting offer");
+      }
     }
   };
 
@@ -175,7 +212,21 @@ function Offers() {
           </p>
         </div>
         <button
-          onClick={() => setIsModalOpen(true)}
+          onClick={() => {
+            setEditingId(null);
+            setFormData({
+              name: "",
+              code: "",
+              discountValue: "",
+              discountType: "Percentage",
+              validFrom: "",
+              validTo: "",
+              minOrder: "",
+              maxDiscount: "",
+              usageLimit: "",
+            });
+            setIsModalOpen(true);
+          }}
           className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-white bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 transition-all duration-300 shadow-md hover:shadow-lg hover:scale-[1.03]"
         >
           Add Offer
@@ -276,16 +327,32 @@ function Offers() {
             </tr>
           </thead>
           <tbody>
-            {filteredOffers.map((o, i) => (
-              <tr key={i} className="hover:bg-gray-50 transition">
+            {filteredOffers.map((o) => (
+              <tr key={o._id || o.id} className="hover:bg-gray-50 transition">
                 <td className="p-4 font-medium">{o.name}</td>
                 <td className="p-4">{o.code}</td>
                 <td className="p-4">{o.discountValue} {o.discountType === "Percentage" ? "%" : "₹"}</td>
-                <td className="p-4">{o.validFrom} - {o.validTo}</td>
+                <td className="p-4">{new Date(o.validFrom).toLocaleDateString()} - {new Date(o.validTo).toLocaleDateString()}</td>
                 <td className="p-4">{o.usage}/{o.usageLimit || 100}</td>
                 <td className="p-4">
                   <button
-                    onClick={() => toggleStatus(o.id)}
+                    onClick={async () => {
+                      try {
+                        const id = o._id || o.id;
+                        const newStatus = o.status === "Active" ? "Inactive" : "Active";
+                        const res = await fetch(`${API_BASE}/${id}/status`, {
+                          method: "PATCH",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ status: newStatus }),
+                        });
+                        const json = await res.json();
+                        if (json.success) {
+                          await fetchOffers();
+                        }
+                      } catch (err) {
+                        console.error("Error updating status", err);
+                      }
+                    }}
                     className={`px-3 py-1 rounded-full text-white font-semibold transition ${
                       o.status === "Active" ? "bg-green-600" : "bg-gray-400"
                     }`}
@@ -294,10 +361,10 @@ function Offers() {
                   </button>
                 </td>
                 <td className="p-4 text-center flex justify-center gap-2">
-                  <button onClick={() => setSelectedOffer(o)} className="text-blue-600 hover:text-blue-800">
+                  <button onClick={() => handleEditOffer(o)} className="text-blue-600 hover:text-blue-800">
                     <FaEdit />
                   </button>
-                  <button onClick={() => deleteOffer(o.id)} className="text-red-600 hover:text-red-800">
+                  <button onClick={() => handleDeleteOffer(o._id || o.id)} className="text-red-600 hover:text-red-800">
                     <FaTrash />
                   </button>
                 </td>
@@ -311,7 +378,7 @@ function Offers() {
       {isModalOpen && (
         <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50 p-4 md:p-0">
           <div className="bg-white w-full max-w-2xl p-6 rounded-xl shadow-lg relative overflow-y-auto max-h-[90vh]">
-            <h2 className="text-xl md:text-2xl font-semibold mb-4">Add Offer</h2>
+            <h2 className="text-xl md:text-2xl font-semibold mb-4">{editingId ? "Edit Offer" : "Add Offer"}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="flex flex-col gap-1">
                 <label>Offer Name *</label>
@@ -355,11 +422,25 @@ function Offers() {
             </div>
 
             <div className="flex flex-col md:flex-row justify-end gap-4 mt-6">
-              <button onClick={() => setIsModalOpen(false)} className="px-4 py-2 border rounded hover:bg-gray-100">
+              <button onClick={() => {
+                setIsModalOpen(false);
+                setEditingId(null);
+                setFormData({
+                  name: "",
+                  code: "",
+                  discountValue: "",
+                  discountType: "Percentage",
+                  validFrom: "",
+                  validTo: "",
+                  minOrder: "",
+                  maxDiscount: "",
+                  usageLimit: "",
+                });
+              }} className="px-4 py-2 border rounded hover:bg-gray-100">
                 Cancel
               </button>
               <button onClick={handleAddOffer} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700">
-                Create Offer
+                {editingId ? "Update Offer" : "Create Offer"}
               </button>
             </div>
           </div>
